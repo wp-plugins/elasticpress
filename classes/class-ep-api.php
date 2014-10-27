@@ -221,38 +221,6 @@ class EP_API {
 	}
 
 	/**
-	 * This function checks two things - that the plugin is currently 'activated' and that it can successfully reach the
-	 * server.
-	 *
-	 * @since 0.1.1
-	 * @return bool
-	 */
-	public function is_alive() {
-		$activated_status = ep_is_activated();
-
-		// If this has been disabled for some reason, then abort early
-		if ( ! $activated_status ) {
-			return false;
-		}
-
-		// Otherwise proceed with our check to the server
-		$is_alive = false;
-
-		$url = ep_get_index_url() . '/_status';
-
-		$request = wp_remote_request( $url );
-
-		if ( ! is_wp_error( $request ) ) {
-			if ( isset( $request['response']['code'] ) && 200 === $request['response']['code'] ) {
-				$is_alive = true;
-			}
-		}
-
-		// Return our status and cache it
-		return $is_alive;
-	}
-
-	/**
 	 * Delete the network index alias
 	 *
 	 * @since 0.9.0
@@ -452,10 +420,20 @@ class EP_API {
 							'include_in_all' => false
 						),
 						'post_title' => array(
-							'type' => 'string',
-							'_boost'  => 3.0,
-							'store'  => 'yes',
-							'analyzer' => 'standard'
+							'type' => 'multi_field',
+							'fields' => array(
+								'post_title' => array(
+									'type' => 'string',
+									'analyzer' => 'standard',
+									'_boost' => 3.0,
+									'store' => 'yes'
+								),
+								'raw' => array(
+									'type' => 'string',
+									'index' => 'not_analyzed',
+									'include_in_all' => false
+								)
+							)
 						),
 						'post_excerpt' => array(
 							'type' => 'string',
@@ -709,14 +687,43 @@ class EP_API {
 		$formatted_args = array(
 			'from' => 0,
 			'size' => $posts_per_page,
-			'sort' => array(
+		);
+
+		/**
+		 * Order and Orderby arguments
+		 *
+		 * Used for how Elasticsearch will sort results
+		 *
+		 * @since 1.1
+		 */
+		// Set sort order, default is 'desc'
+		if ( ! empty( $args['order'] ) ) {
+			$order = $this->parse_order( $args['order'] );
+		} else {
+			$order = 'desc';
+		}
+
+		// Set sort type
+		if ( ! empty( $args['orderby'] ) ) {
+			$sort = $this->parse_orderby( $args['orderby'], $order );
+
+			if ( false !== $sort ) {
+				$formatted_args['sort'] = $sort;
+			}
+		}
+
+		// Either nothing was passed or the parse_orderby failed, use default sort
+		if ( empty( $args['orderby'] ) || false === $sort ) {
+
+			// Default sort is to use the score (based on relevance)
+			$formatted_args['sort'] = array(
 				array(
 					'_score' => array(
-						'order' => 'desc',
+						'order' => $order,
 					),
 				),
-			),
-		);
+			);
+		}
 
 		$filter = array(
 			'and' => array(),
@@ -928,6 +935,7 @@ class EP_API {
 	 *
 	 * @param $query
 	 * @return bool
+	 * @since 0.9.2
 	 */
 	public function elasticpress_enabled( $query ) {
 		$enabled = false;
@@ -941,16 +949,152 @@ class EP_API {
 		return apply_filters( 'ep_elasticpress_enabled', $enabled, $query );
 	}
 
-	public function is_activated() {
-		return get_site_option( 'ep_is_active', false, false );
-	}
-
+	/**
+	 * Deactivate ElasticPress. Disallow EP to override the main WP_Query for search queries
+	 *
+	 * @return bool
+	 * @since 1.0.0
+	 */
 	public function deactivate() {
 		return delete_site_option( 'ep_is_active' );
 	}
 
+	/**
+	 * Activate ElasticPress. Allow EP to override the main WP_Query for search queries
+	 *
+	 * @return bool
+	 * @since 1.0.0
+	 */
 	public function activate() {
 		return update_site_option( 'ep_is_active', true );
+	}
+
+	/**
+	 * Parse an 'order' query variable and cast it to ASC or DESC as necessary.
+	 *
+	 * @since 1.1
+	 * @access protected
+	 *
+	 * @param string $order The 'order' query variable.
+	 * @return string The sanitized 'order' query variable.
+	 */
+	protected function parse_order( $order ) {
+		if ( ! is_string( $order ) || empty( $order ) ) {
+			return 'desc';
+		}
+
+		if ( 'ASC' === strtoupper( $order ) ) {
+			return 'asc';
+		} else {
+			return 'desc';
+		}
+	}
+
+	/**
+	 * If the passed orderby value is allowed, convert the alias to a
+	 * properly-prefixed sort value.
+	 *
+	 * @since 1.1
+	 * @access protected
+	 *
+	 * @param string $orderby Alias for the field to order by.
+	 * @return array|bool Array formatted value to used in the sort DSL. False otherwise.
+	 */
+	protected function parse_orderby( $orderby, $order ) {
+		// Used to filter values.
+		$allowed_keys = array(
+			'relevance',
+			'name',
+			'title',
+		);
+
+		if ( ! in_array( $orderby, $allowed_keys ) ) {
+			return false;
+		}
+
+		switch ( $orderby ) {
+			case 'relevance':
+			default:
+				$sort = array(
+					array(
+						'_score' => array(
+							'order' => $order,
+						),
+					),
+				);
+				break;
+			case 'name':
+			case 'title':
+				$sort = array(
+					array(
+						'post_' . $orderby . '.raw' => array(
+							'order' => $order,
+						),
+					),
+				);
+				break;
+		}
+
+		return $sort;
+	}
+
+	/**
+	 * Check to see if ElasticPress is currently active (can be disabled during syncing, etc)
+	 *
+	 * @return mixed
+	 * @since 0.9.2
+	 */
+	public function is_activated() {
+		return get_site_option( 'ep_is_active', false, false );
+	}
+
+	/**
+	 * This function checks two things - that the plugin is currently 'activated' and that it can successfully reach the
+	 * server.
+	 *
+	 * @since 1.1.0
+	 * @return bool
+	 */
+	public function elasticsearch_alive() {
+		$elasticsearch_alive = false;
+
+		$url = EP_HOST;
+
+		$request = wp_remote_request( $url );
+
+		if ( ! is_wp_error( $request ) ) {
+			if ( isset( $request['response']['code'] ) && 200 === $request['response']['code'] ) {
+				$elasticsearch_alive = true;
+			}
+		}
+
+		return $elasticsearch_alive;
+	}
+
+	/**
+	 * Ensures that this index exists
+	 *
+	 * @param null $index
+	 *
+	 * @return bool
+	 * @since 1.1.0
+	 */
+	public function index_exists( $index = null ) {
+		$index_exists = false;
+
+		$index_url = ep_get_index_url( $index );
+
+		$url = $index_url . '/_status';
+
+		$request = wp_remote_request( $url );
+
+		if ( ! is_wp_error( $request ) ) {
+			if ( isset( $request['response']['code'] ) && 200 === $request['response']['code'] ) {
+				$index_exists = true;
+			}
+		}
+
+		return $index_exists;
 	}
 }
 
@@ -974,10 +1118,6 @@ function ep_get_post( $post_id ) {
 
 function ep_delete_post( $post_id ) {
 	return EP_API::factory()->delete_post( $post_id );
-}
-
-function ep_is_alive() {
-	return EP_API::factory()->is_alive();
 }
 
 function ep_put_mapping() {
@@ -1020,14 +1160,22 @@ function ep_elasticpress_enabled( $query ) {
 	return EP_API::factory()->elasticpress_enabled( $query );
 }
 
-function ep_is_activated() {
-	return EP_API::factory()->is_activated();
-}
-
 function ep_activate() {
 	return EP_API::factory()->activate();
 }
 
 function ep_deactivate() {
 	return EP_API::factory()->deactivate();
+}
+
+function ep_is_activated() {
+	return EP_API::factory()->is_activated();
+}
+
+function ep_elasticsearch_alive() {
+	return EP_API::factory()->elasticsearch_alive();
+}
+
+function ep_index_exists() {
+	return EP_API::factory()->index_exists();
 }

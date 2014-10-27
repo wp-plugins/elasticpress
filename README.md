@@ -3,9 +3,6 @@ ElasticPress [![Build Status](https://travis-ci.org/10up/ElasticPress.svg?branch
 
 Integrate [Elasticsearch](http://www.elasticsearch.org/) with [WordPress](http://wordpress.org/).
 
-* **Latest Stable**: [v0.9.3](https://github.com/10up/ElasticPress/releases/tag/v0.9.3)
-* **Contributors**: [@aaronholbrook](https://github.com/AaronHolbrook), [@tlovett1](https://github.com/tlovett1), [@mattonomics](https://github.com/mattonomics), [@ivanlopez](https://github.com/ivanlopez), [@colegeissinger](https://github.com/colegeissinger), [@cmmarslender](https://github.com/cmmarslender), [@ghosttoast](https://github.com/ghoasttoast)
-
 ## Background
 
 Let's face it, WordPress search is rudimentary at best. Poor performance, inflexible and rigid matching algorithms (which means no comprehension of 'close' queries), the inability to search metadata and taxonomy information, no way to determine categories of your results and most importantly the overall relevancy of results is poor.
@@ -123,6 +120,14 @@ After running an index, ElasticPress integrates with WP_Query. The end goal is t
 * ```author_name``` (*string*)
 
     Show posts associated with certain author. Use ```user_nicename``` (NOT name).
+    
+* ```orderby``` (*string*)
+
+    Order results by field name instead of relevance. Currently only supports: ```title```, ```name```, and ```relevance``` (default).
+
+* ```order``` (*string*)
+
+    Which direction to order results in. Accepts ```ASC``` and ```DESC```. Default is ```DESC```.
 
 The following are special parameters that are only supported by ElasticPress.
 

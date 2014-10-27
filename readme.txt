@@ -4,8 +4,8 @@ Author URI: http://10up.com
 Plugin URI: https://github.com/10up/ElasticPress
 Tags: search, elasticsearch, fuzzy, facet, searching, autosuggest, suggest, elastic, advanced search
 Requires at least: 3.7.1
-Tested up to: 4.0
-Stable tag: 1.0
+Tested up to: 4.1
+Stable tag: 1.1
 License: MIT
 License URI: http://opensource.org/licenses/MIT
 
@@ -57,6 +57,9 @@ configuring single site and multi-site cross-site search are slightly different.
 3. Using WP-CLI, do an initial sync (with mapping) with your ES server by running: `wp elasticpress index --setup --network-wide`.
 
 == Changelog ==
+= 1.1 =
+* Refactored `is_alive`, `is_activated`, and `is_activated_and_alive`. We now have functions `is_activated`, `elasticsearch_alive`, `index_exists`, and `is_activated`. This refactoring helped us fix #150.
+* Add support for post_title and post_name orderby parameters in `WP_Query` integration. Add support for order parameters.
 
 = 1.0 =
 * Support `search_fields` parameter. Support author, title, excerpt, content, taxonomy, and meta within this parameter.
