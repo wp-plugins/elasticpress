@@ -169,7 +169,7 @@ After running an index, ElasticPress integrates with `WP_Query` if and only if t
     
 * ```orderby``` (*string*)
 
-    Order results by field name instead of relevance. Currently only supports: ```title```, ```name```, and ```relevance``` (default).
+    Order results by field name instead of relevance. Currently only supports: ```title```, ```name```, ```date```, and ```relevance``` (default).
 
 * ```order``` (*string*)
 
@@ -398,6 +398,14 @@ Our test suite depends on a running Elasticsearch server. You can supply a host 
 
 ```bash
 EP_HOST="http://192.168.50.4:9200" phpunit
+```
+
+#### Dockunit
+
+ElasticPress contains a valid [Dockunit](https://www.npmjs.com/package/dockunit) file for running unit tests across a variety of environments locally (PHP 5.2 and 5.5). It assumes the address of your Elasticsearch server is `http://192.168.50.4:9200`. You can use Dockunit by running:
+
+```bash
+dockunit
 ```
 
 ### Issues
