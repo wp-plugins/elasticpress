@@ -11,7 +11,7 @@ return array(
 				'default' => array(
 					'tokenizer' => 'standard',
 					'filter' => array( 'standard', 'ewp_word_delimiter', 'lowercase', 'stop', 'ewp_snowball' ),
-					'language' => apply_filters( 'ep_analyzer_language', 'English' ),
+					'language' => apply_filters( 'ep_analyzer_language', 'english' ),
 				),
 				'shingle_analyzer' => array(
 					'type' => 'custom',
@@ -31,7 +31,7 @@ return array(
 				),
 				'ewp_snowball' => array(
 					'type' => 'snowball',
-					'language' => apply_filters( 'ep_analyzer_language', 'English' ),
+					'language' => apply_filters( 'ep_analyzer_language', 'english' ),
 				),
 				'edge_ngram' => array(
 					'side' => 'front',
@@ -111,8 +111,7 @@ return array(
 				),
 				'post_author' => array(
 					'type' => 'object',
-					'path' => 'full',
-					'fields' => array(
+					'properties' => array(
 						'display_name' => array(
 							'type' => 'string',
 							'analyzer' => 'standard',
@@ -217,6 +216,10 @@ return array(
 				'permalink' => array(
 					'type' => 'string',
 				),
+				'guid' => array(
+					'type' => 'string',
+					'index' => 'not_analyzed'
+				),
 				'terms' => array(
 					'type' => 'object',
 				),
@@ -225,8 +228,7 @@ return array(
 				),
 				'date_terms' => array(
 					'type' => 'object',
-					'path' => 'full',
-					'fields' => array(
+					'properties' => array(
 						'year' => array( //4 digit year (e.g. 2011)
 							'type' => 'integer',
 						),
